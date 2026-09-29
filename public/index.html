@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutrition Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; color: #2c7a3f; }
+    h2 { margin: 20px 0 10px; color: #2c7a3f; }
+    .card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
+    input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #2c7a3f; }
+    button { background: #2c7a3f; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #236130; }
+    button.secondary { background: #6c757d; }
+    button.secondary:hover { background: #5a6268; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nutrient-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .nutrient-item { background: #f0f7f0; padding: 8px; border-radius: 4px; text-align: center; }
+    .nutrient-item .value { font-size: 18px; font-weight: bold; color: #2c7a3f; }
+    .nutrient-item .label { font-size: 12px; color: #666; }
+    .product-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .product-item:last-child { border-bottom: none; }
+    .meal-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .hidden { display: none; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+    .tab { padding: 10px 16px; cursor: pointer; border: none; background: none; color: #666; font-size: 14px; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: #2c7a3f; border-bottom-color: #2c7a3f; }
+    .tab:hover { color: #2c7a3f; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .loading { text-align: center; padding: 20px; color: #666; }
+    .error { color: #dc3545; background: #f8d7da; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    .success { color: #2c7a3f; background: #d4edda; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    .config-bar { background: #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+    .config-bar .form-group { display: inline-block; width: 30%; margin-right: 10px; }
+    .config-bar button { vertical-align: top; }
+    .date-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .date-nav input { width: 140px; }
+    .meal-list { margin: 10px 0; }
+    .meal-entry { background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
+    .meal-entry h4 { margin-bottom: 8px; }
+    .badge { display: inline-block; background: #2c7a3f; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🥗 Nutrition Tracker</h1>
+
+    <!-- AI Configuration -->
+    <div class="config-bar">
+      <h3>AI Configuration</h3>
+      <div class="form-group">
+        <label for="apiUrl">API URL</label>
+        <input type="text" id="apiUrl" placeholder="https://api.openai.com/v1">
+      </div>
+      <div class="form-group">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+      </div>
+      <div class="form-group">
+        <label for="model">Model</label>
+        <input type="text" id="model" placeholder="gpt-4-vision-preview">
+      </div>
+      <button onclick="saveConfig()">Save Config</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab active" onclick="showSection('scan')">📷 Scan</button>
+      <button class="tab" onclick="showSection('products')">📦 Products</button>
+      <button class="tab" onclick="showSection('meals')">🍽️ Meals</button>
+      <button class="tab" onclick="showSection('tracking')">📊 Tracking</button>
+    </div>
+
+    <!-- Scan Section -->
+    <div id="scan" class="section active">
+      <div class="card">
+        <h2>Scan Nutrition Label</h2>
+        <p style="margin-bottom: 12px; color: #666;">Take or upload a photo of a nutrition label to extract product information.</p>
+        <div class="form-group">
+          <label for="imageInput">Product Photo</label>
+          <input type="file" id="imageInput" accept="image/*" capture="environment">
+        </div>
+        <div class="form-group">
+          <label for="productName">Product Name (optional)</label>
+          <input type="text" id="productName" placeholder="e.g., Organic Almonds">
+        </div>
+        <button onclick="scanImage()">Scan Label</button>
+        <div id="scanResult" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- Products Section -->
+    <div id="products" class="section">
+      <div class="card">
+        <h2>My Products</h2>
+        <div id="productsList"></div>
+      </div>
+    </div>
+
+    <!-- Meals Section -->
+    <div id="meals" class="section">
+      <div class="card">
+        <h2>Create Meal</h2>
+        <div class="form-group">
+          <label for="mealName">Meal Name</label>
+          <input type="text" id="mealName" placeholder="e.g., Breakfast">
+        </div>
+        <button onclick="createMeal()">Create Meal</button>
+      </div>
+      <div id="mealsList"></div>
+      <div class="card" id="addMealItemCard" class="hidden">
+        <h3>Add to Meal</h3>
+        <div class="form-group">
+          <label for="mealSelect">Select Meal</label>
+          <select id="mealSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="productSelect">Select Product</label>
+          <select id="productSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="gramsInput">Grams</label>
+          <input type="number" id="gramsInput" placeholder="100" value="100">
+        </div>
+        <button onclick="addMealItem()">Add Item</button>
+      </div>
+      <div id="mealNutrition" class="hidden"></div>
+    </div>
+
+    <!-- Tracking Section -->
+    <div id="tracking" class="section">
+      <div class="card">
+        <h2>Daily Tracking</h2>
+        <div class="date-nav">
+          <button class="secondary" onclick="changeDate(-1)">←</button>
+          <input type="date" id="trackingDate" onchange="loadDayTracking()">
+          <button class="secondary" onclick="changeDate(1)">→</button>
+        </div>
+        <div id="dayNutrition"></div>
+        <h3 style="margin-top: 16px;">Add from Meal</h3>
+        <div class="form-group">
+          <label for="mealTrackingSelect">Select Meal</label>
+          <select id="mealTrackingSelect"></select>
+        </div>
+        <button onclick="addMealToDay()">Add to Day</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
