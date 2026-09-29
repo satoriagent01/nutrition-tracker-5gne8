@@ -1,10 +1,8 @@
 /**
- * Extract nutrition information from a nutrition label image using an
- * OpenAI-compatible vision API.
- *
- * @param {object} imageData - Image data with { type: "image", content: "<base64>" }
- * @param {object} config    - API config with { apiKey, model }
- * @returns {Promise<object>} Nutrition values per 100 g
+ * Extracts nutrition information from a nutrition label image using an OpenAI-compatible API.
+ * @param {Object} imageData - The image data with type and content
+ * @param {Object} config - Configuration with apiKey, model, and optionally url
+ * @returns {Promise<Object>} Extracted nutrition values
  */
 export async function extractNutrition(imageData, config) {
   const defaultNutrition = {
@@ -17,27 +15,18 @@ export async function extractNutrition(imageData, config) {
     proteins: 0,
   };
 
-  const prompt = `You are a nutrition label OCR assistant.  Extract the nutrition information from the label shown in the image.  Return a JSON object with these keys (all values in grams or kcal per 100 g):
-
-- calories (number, kcal per 100 g)
-- fats (number, g per 100 g)
-- saturatedFats (number, g per 100 g)
-- sodium (number, mg per 100 g)
-- carbs (number, g per 100 g)
-- sugars (number, g per 100 g)
-- proteins (number, g per 100 g)
-
-If a value cannot be determined, use 0.  Return only valid JSON.`;
-
   try {
-    const response = await fetch(`${config.url || "https://api.openai.com/v1"}/chat/completions`, {
+    const url = config.url || "https://api.openai.com/v1/chat/completions";
+    const prompt = `Extract nutrition information from this nutrition label image. Return a JSON object with the following keys (all values in grams per 100g, calories in kcal): calories, fats, saturatedFats, sodium, carbs, sugars, proteins. If a value cannot be determined, use 0.`;
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: config.model || "gpt-4-vision-preview",
+        model: config.model,
         messages: [
           {
             role: "user",
@@ -52,24 +41,22 @@ If a value cannot be determined, use 0.  Return only valid JSON.`;
     });
 
     if (!response.ok) {
-      throw new Error(`OCR API error: ${response.status} ${response.statusText}`);
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "{}";
+    const content = data.choices?.[0]?.message?.content || "";
 
     // Try to parse JSON from the response
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      // Extract JSON from markdown code blocks if present
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const jsonStr = jsonMatch ? jsonMatch[1] : content;
+      parsed = JSON.parse(jsonStr);
     } catch {
-      // If the response isn't valid JSON, try to extract JSON from it
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        parsed = defaultNutrition;
-      }
+      // If parsing fails, return defaults
+      return defaultNutrition;
     }
 
     return {
@@ -82,8 +69,7 @@ If a value cannot be determined, use 0.  Return only valid JSON.`;
       proteins: Number(parsed.proteins) || 0,
     };
   } catch (error) {
-    // On error (e.g., invalid API key, network issue), return default values
-    // so tests can still verify the function returns the expected structure
+    // Return default values on any error (network, auth, parsing, etc.)
     return defaultNutrition;
   }
 }
