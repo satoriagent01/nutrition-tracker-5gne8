@@ -1,0 +1,9 @@
+{
+  "name": "nutrition-tracker-5gne8",
+  "version": "1.0.0",
+  "description": "Free and ad-free nutrition tracking app",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
