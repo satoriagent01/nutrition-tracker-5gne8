@@ -55,7 +55,7 @@ export async function extractNutrition(imageData, config) {
       const jsonStr = jsonMatch ? jsonMatch[1] : content;
       parsed = JSON.parse(jsonStr);
     } catch {
-      // If parsing fails, return defaults
+      // If parsing fails, return default values
       return defaultNutrition;
     }
 
@@ -68,8 +68,8 @@ export async function extractNutrition(imageData, config) {
       sugars: Number(parsed.sugars) || 0,
       proteins: Number(parsed.proteins) || 0,
     };
-  } catch (error) {
-    // Return default values on any error (network, auth, parsing, etc.)
+  } catch {
+    // Return default values on any error (network, parse, etc.)
     return defaultNutrition;
   }
 }
